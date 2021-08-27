@@ -27,14 +27,7 @@ export async function run(options: Options, actions: Actions): Promise<void> {
 
 ${newYamlContent}
 `)
-
-    if (options.updateFile === true) {
-      writeTo(newYamlContent, filePath, actions)
-    }
-
-    if (options.commitChange === false) {
-      return
-    }
+    writeTo(newYamlContent, filePath, actions)
 
     const octokit = new Octokit({auth: options.token})
 

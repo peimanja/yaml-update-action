@@ -6,8 +6,6 @@ export interface Options {
   propertyPath: string
   value: string | number | boolean
   token: string
-  commitChange: boolean
-  updateFile: boolean
   branch: string
   message: string
   title: string
@@ -34,14 +32,6 @@ export class GitHubOptions implements Options {
 
   get branch(): string {
     return core.getInput('branch')
-  }
-
-  get commitChange(): boolean {
-    return core.getInput('commitChange') === 'true'
-  }
-
-  get updateFile(): boolean {
-    return core.getInput('updateFile') === 'true'
   }
 
   get targetBranch(): string {
@@ -104,13 +94,6 @@ export class EnvOptions implements Options {
     return process.env.BRANCH || ''
   }
 
-  get commitChange(): boolean {
-    return process.env.COMMIT_CHANGE === 'true'
-  }
-
-  get updateFile(): boolean {
-    return process.env.UPDATE_FILE === 'true'
-  }
 
   get targetBranch(): string {
     return process.env.TARGET_BRANCH || ''

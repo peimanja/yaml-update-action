@@ -8,29 +8,17 @@ inputs:
   propertyPath:
     required: true
     description: 'Property Path - using dot for nesting: e.g. backend.version'
+    default: 'imageTag'
   value:
     required: true
     description: 'New property value'
   branch:
-    required: false
+    required: true
     description: 'Branch to commit the change, will be created if not exist'
-    default: 'master'
   targetBranch:
     required: false
     description: 'Target Branch for the created PullRequest'
     default: master
-  createPR:
-    required: false
-    description: 'Create a PullRequest to the configured target branch'
-    default: 'false'
-  commitChange:
-    required: false
-    description: 'Commit the change "branch" with the given "message"'
-    default: 'true'
-  updateFile:
-    required: false
-    description: 'Update the original File in your workflow'
-    default: 'false'
   message:
     required: false
     description: 'Commit message for the value update'
@@ -58,7 +46,7 @@ inputs:
   workDir:
     required: false
     description: 'repository workspace location'
-    default: .
+    default: apps
 runs:
   using: 'node12'
   main: 'dist/index.js'

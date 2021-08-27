@@ -58,12 +58,7 @@ function run(options, actions) {
 
 ${newYamlContent}
 `);
-            if (options.updateFile === true) {
-                writeTo(newYamlContent, filePath, actions);
-            }
-            if (options.commitChange === false) {
-                return;
-            }
+            writeTo(newYamlContent, filePath, actions);
             const octokit = new rest_1.Octokit({ auth: options.token });
             const file = {
                 relativePath: options.valueFile,
@@ -406,12 +401,6 @@ class GitHubOptions {
     get branch() {
         return core.getInput('branch');
     }
-    get commitChange() {
-        return core.getInput('commitChange') === 'true';
-    }
-    get updateFile() {
-        return core.getInput('updateFile') === 'true';
-    }
     get targetBranch() {
         return core.getInput('targetBranch');
     }
@@ -459,12 +448,6 @@ class EnvOptions {
     }
     get branch() {
         return process.env.BRANCH || '';
-    }
-    get commitChange() {
-        return process.env.COMMIT_CHANGE === 'true';
-    }
-    get updateFile() {
-        return process.env.UPDATE_FILE === 'true';
     }
     get targetBranch() {
         return process.env.TARGET_BRANCH || '';
