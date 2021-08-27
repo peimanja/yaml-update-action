@@ -47,14 +47,15 @@ const rest_1 = __nccwpck_require__(5375);
 const git_commands_1 = __nccwpck_require__(4703);
 function run(options, actions) {
     return __awaiter(this, void 0, void 0, function* () {
+        actions.startGroup('YamlUpdateAction');
         const filePath = path_1.default.join(process.cwd(), options.workDir, options.valueFile);
-        actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
+        actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
         try {
             const yamlContent = parseFile(filePath);
             actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
             const result = replace(options.value, options.propertyPath, yamlContent);
             const newYamlContent = convert(result);
-            actions.debug(`Generated updated YAML
+            actions.info(`Generated updated YAML
 
 ${newYamlContent}
 `);
@@ -65,10 +66,10 @@ ${newYamlContent}
                 absolutePath: filePath,
                 content: newYamlContent
             };
+            actions.endGroup();
+            actions.startGroup('GitHub Actions');
             yield gitProcessing(options.repository, options.branch, file, options.message, octokit, actions);
-            if (options.createPR) {
-                yield createPullRequest(options.repository, options.branch, options.targetBranch, options.labels, options.title || `Merge: ${options.message}`, options.description, octokit, actions);
-            }
+            yield createPullRequest(options.repository, options.branch, options.targetBranch, options.labels, options.title || `Merge: ${options.message}`, options.description, octokit, actions);
         }
         catch (error) {
             core.info(error.message);
@@ -166,7 +167,8 @@ function createPullRequest(repository, branch, targetBranch, labels, title, desc
             base: targetBranch,
             body: description
         });
-        actions.debug(`Create PR: #${response.data.id}`);
+        actions.info(`Create PR: #${response.data.id}`);
+        actions.info(JSON.stringify(response.data));
         actions.setOutput('pull_request', JSON.stringify(response.data));
         octokit.issues.addLabels({
             owner,
@@ -323,15 +325,24 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.LogActions = exports.GitHubActions = void 0;
+exports.GitHubActions = void 0;
 /* eslint-disable no-console */
 const core = __importStar(__nccwpck_require__(2186));
 class GitHubActions {
     debug(message) {
         core.debug(message);
     }
+    info(message) {
+        core.info(message);
+    }
     warning(message) {
         core.warning(message);
+    }
+    startGroup(message) {
+        core.startGroup(message);
+    }
+    endGroup() {
+        core.endGroup();
     }
     setOutput(name, output) {
         core.setOutput(name, output);
@@ -341,21 +352,6 @@ class GitHubActions {
     }
 }
 exports.GitHubActions = GitHubActions;
-class LogActions {
-    debug(message) {
-        console.info(message);
-    }
-    warning(message) {
-        console.warn(message);
-    }
-    setOutput(name, output) {
-        console.log(name, output);
-    }
-    setFailed(message) {
-        console.error(message);
-    }
-}
-exports.LogActions = LogActions;
 
 
 /***/ }),
@@ -407,9 +403,6 @@ class GitHubOptions {
     get repository() {
         return core.getInput('repository');
     }
-    get createPR() {
-        return core.getInput('createPR') === 'true';
-    }
     get token() {
         return core.getInput('token');
     }
@@ -454,9 +447,6 @@ class EnvOptions {
     }
     get token() {
         return process.env.TOKEN || '';
-    }
-    get createPR() {
-        return process.env.CREATE_PR === 'true';
     }
     get message() {
         return process.env.MESSAGE || '';

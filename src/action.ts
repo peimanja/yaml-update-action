@@ -10,9 +10,11 @@ import {ChangedFile, createBlobForFile, createNewCommit, createNewTree, currentC
 export type YamlNode = {[key: string]: string | number | boolean | YamlNode}
 
 export async function run(options: Options, actions: Actions): Promise<void> {
+  actions.startGroup('YamlUpdateAction')
+
   const filePath = path.join(process.cwd(), options.workDir, options.valueFile)
 
-  actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
+  actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
 
   try {
     const yamlContent: YamlNode = parseFile(filePath)
@@ -23,7 +25,7 @@ export async function run(options: Options, actions: Actions): Promise<void> {
 
     const newYamlContent = convert(result)
 
-    actions.debug(`Generated updated YAML
+    actions.info(`Generated updated YAML
 
 ${newYamlContent}
 `)
@@ -36,10 +38,11 @@ ${newYamlContent}
       absolutePath: filePath,
       content: newYamlContent
     }
+    actions.endGroup()
 
+    actions.startGroup('GitHub Actions')
     await gitProcessing(options.repository, options.branch, file, options.message, octokit, actions)
 
-    if (options.createPR) {
       await createPullRequest(
         options.repository,
         options.branch,
@@ -50,7 +53,6 @@ ${newYamlContent}
         octokit,
         actions
       )
-    }
   } catch (error) {
     core.info(error.message)
     if (error.message && error.message.includes('A pull request already exists')) {
@@ -180,7 +182,8 @@ export async function createPullRequest(
     body: description
   })
 
-  actions.debug(`Create PR: #${response.data.id}`)
+  actions.info(`Create PR: #${response.data.id}`)
+  actions.info(JSON.stringify(response.data))
 
   actions.setOutput('pull_request', JSON.stringify(response.data))
 

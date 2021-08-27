@@ -13,7 +13,6 @@ export interface Options {
   labels: string[]
   targetBranch: string
   repository: string
-  createPR: boolean
   workDir: string
 }
 
@@ -40,10 +39,6 @@ export class GitHubOptions implements Options {
 
   get repository(): string {
     return core.getInput('repository')
-  }
-
-  get createPR(): boolean {
-    return core.getInput('createPR') === 'true'
   }
 
   get token(): string {
@@ -101,10 +96,6 @@ export class EnvOptions implements Options {
 
   get token(): string {
     return process.env.TOKEN || ''
-  }
-
-  get createPR(): boolean {
-    return process.env.CREATE_PR === 'true'
   }
 
   get message(): string {
