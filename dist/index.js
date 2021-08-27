@@ -147,7 +147,7 @@ function createPullRequest(repository, branch, targetBranch, labels, title, desc
             body: description
         });
         actions.info(`Create PR: #${response.data.id}`);
-        actions.info(JSON.stringify(response.data));
+        actions.info(JSON.stringify(response.data.html_url));
         actions.setOutput('pull_request', JSON.stringify(response.data));
         octokit.issues.addLabels({
             owner,

@@ -23,6 +23,10 @@ inputs:
     required: false
     description: 'Commit message for the value update'
     default: ''
+  automerge:
+    required: false
+    description: 'if set to true, the action will label the PR with auto-merge in gitops repositories'
+    default: 'false'
   title:
     required: false
     description: 'Title of the created pull request'

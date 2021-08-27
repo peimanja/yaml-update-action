@@ -181,7 +181,7 @@ export async function createPullRequest(
   })
 
   actions.info(`Create PR: #${response.data.id}`)
-  actions.info(JSON.stringify(response.data))
+  actions.info(JSON.stringify(response.data.html_url))
 
   actions.setOutput('pull_request', JSON.stringify(response.data))
 
