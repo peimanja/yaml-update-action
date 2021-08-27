@@ -58,13 +58,20 @@ export class GitHubOptions implements Options {
   }
 
   get labels(): string[] {
-    if (!core.getInput('labels')) return []
+    let labels = []
+    if (core.getInput('automerge') === 'true') {
+      labels.push('auto-merge')
+    }
 
-    return core
+    if (!core.getInput('labels')) return labels
+
+    labels = labels.concat(core
       .getInput('labels')
       .split(',')
       .map(label => label.trim())
       .filter(label => !!label)
+    )
+    return labels
   }
 
   get workDir(): string {
@@ -73,6 +80,10 @@ export class GitHubOptions implements Options {
 }
 
 export class EnvOptions implements Options {
+  get automerge(): boolean {
+    return process.env.AUTOMERGE === 'false'
+  }
+
   get valueFile(): string {
     return process.env.VALUE_FILE || ''
   }

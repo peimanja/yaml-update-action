@@ -1,13 +1,13 @@
-name: 'YAML Update Action'
-description: 'Update the property of an existing YAML File'
-author: 'Frank Jogeleit <frank.jogeleit@web.de>'
+name: 'Infra Gitops Action'
+description: 'Action to facilitate the Gitops workflow at Skillz'
+author: 'Skillz Infra Team<devops@skillz.com>'
 inputs:
   valueFile:
     required: true
     description: 'YAML file which should be updated'
   propertyPath:
     required: true
-    description: 'Property Path - using dot for nesting: e.g. backend.version'
+    description: 'Property Path in the yaml file - using dot for nesting: e.g. backend.version'
     default: 'imageTag'
   value:
     required: true

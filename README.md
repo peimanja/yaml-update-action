@@ -1,4 +1,4 @@
-# YAML Update Action
+# Infra GitOps Action
 
 Update a single value in an existing YAML File. Push this updated YAML to an existing branch or create a new branch. Open a PullRequest to an configurable targetBranch. It is also posible to change the file locally without commiting the change.
 
@@ -76,7 +76,7 @@ jobs:
           branch: deployment/${{ steps.image.outputs.version }}
           targetBranch: development
           createPR: true
-          message: 'Update Image Version to ${{ steps.image.outputs.version }}' 
+          message: 'Update Image Version to ${{ steps.image.outputs.version }}'
 ```
 
 ### Input Arguments
@@ -150,7 +150,7 @@ jobs:
         with:
           repository: owner/target-repository
           path: infrastructure
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Image Version in the related HelmChart values.yaml
         uses: fjogeleit/yaml-update-action@master

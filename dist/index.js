@@ -395,13 +395,18 @@ class GitHubOptions {
         return core.getInput('description');
     }
     get labels() {
+        let labels = [];
+        if (core.getInput('automerge') === 'true') {
+            labels.push('auto-merge');
+        }
         if (!core.getInput('labels'))
-            return [];
-        return core
+            return labels;
+        labels = labels.concat(core
             .getInput('labels')
             .split(',')
             .map(label => label.trim())
-            .filter(label => !!label);
+            .filter(label => !!label));
+        return labels;
     }
     get workDir() {
         return core.getInput('workDir');
@@ -409,6 +414,9 @@ class GitHubOptions {
 }
 exports.GitHubOptions = GitHubOptions;
 class EnvOptions {
+    get automerge() {
+        return process.env.AUTOMERGE === 'false';
+    }
     get valueFile() {
         return process.env.VALUE_FILE || '';
     }
