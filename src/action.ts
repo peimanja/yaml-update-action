@@ -23,7 +23,7 @@ export async function run(options: Options, actions: Actions): Promise<void> {
     const newYamlContent = convert(result)
 
     actions.debug(`Generated updated YAML
-    
+
 ${newYamlContent}
 `)
 
@@ -58,8 +58,11 @@ ${newYamlContent}
       )
     }
   } catch (error) {
-    actions.setFailed(error)
-    return
+    if (error.message && error.message.includes('A pull request already exists')) {
+      actions.setOutput('pr_created', 'false');
+    } else {
+      actions.setFailed(error.message);
+    }
   }
 }
 
