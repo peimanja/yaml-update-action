@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import YAML from 'js-yaml'
 import fs from 'fs'
 import path from 'path'
@@ -58,8 +59,9 @@ ${newYamlContent}
       )
     }
   } catch (error) {
+    core.info(error.message)
     if (error.message && error.message.includes('A pull request already exists')) {
-      actions.setOutput('pr_created', 'false');
+      core.info(error.message);
     } else {
       actions.setFailed(error.message);
     }
