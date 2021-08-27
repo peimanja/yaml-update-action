@@ -34,7 +34,7 @@ inputs:
   labels:
     required: false
     description: 'Comma separated list of custom PR labels, e.g. "feature,yaml-updates"'
-    default: 'yaml-updates'
+    default: 'ci-update'
   token:
     required: false
     description: 'GitHub AuthToken for Athorization'
