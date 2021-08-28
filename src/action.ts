@@ -9,39 +9,47 @@ import {ChangedFile, createBlobForFile, createNewCommit, createNewTree, currentC
 export type YamlNode = {[key: string]: string | number | boolean | YamlNode}
 
 export async function run(options: Options, actions: Actions): Promise<void> {
-  actions.startGroup('YamlUpdateAction')
-
-  const filePath = path.join(process.cwd(), options.workDir, options.valueFile)
-
-  actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
-
   try {
-    const yamlContent: YamlNode = parseFile(filePath)
+  actions.startGroup('YamlUpdate')
+  const octokit = new Octokit({auth: options.token})
 
-    actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`)
+  let filePaths = []
+  for (let app of options.apps) {
+    filePaths.push(path.join(process.cwd(),options.workDir, app, options.valueFile))
+  }
 
-    const result = replace(options.value, options.propertyPath, yamlContent)
+  for (let filePath of filePaths) {
+    actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
+      if (!fs.existsSync(filePath)) {
+        actions.setFailed(`File not found: ${filePath}`)
+        return
+      }
 
-    const newYamlContent = convert(result)
+      const yamlContent: YamlNode = parseFile(filePath)
 
-    actions.info(`Generated updated YAML
+      actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`)
 
-${newYamlContent}
-`)
-    writeTo(newYamlContent, filePath, actions)
+      const result = replace(options.value, options.propertyPath, yamlContent)
 
-    const octokit = new Octokit({auth: options.token})
+      const newYamlContent = convert(result)
 
-    const file: ChangedFile = {
-      relativePath: options.valueFile,
-      absolutePath: filePath,
-      content: newYamlContent
+      actions.info(`Generated updated YAML
+
+  ${newYamlContent}
+  `)
+      writeTo(newYamlContent, filePath, actions)
+
+      const file: ChangedFile = {
+        relativePath: options.valueFile,
+        absolutePath: filePath,
+        content: newYamlContent
+      }
+
+      await gitProcessing(options.repository, options.branch, file, options.message, octokit, actions)
     }
     actions.endGroup()
 
-    actions.startGroup('GitHub Actions')
-    await gitProcessing(options.repository, options.branch, file, options.message, octokit, actions)
-
+    actions.startGroup('Create PR')
       await createPullRequest(
         options.repository,
         options.branch,
@@ -52,6 +60,7 @@ ${newYamlContent}
         octokit,
         actions
       )
+      actions.endGroup()
   } catch (error) {
     if (error.message && error.message.includes('A pull request already exists')) {
       actions.info(`Pull request already exists. Skipping.`);
@@ -180,8 +189,7 @@ export async function createPullRequest(
     body: description
   })
 
-  actions.info(`Create PR: #${response.data.id}`)
-  actions.info(JSON.stringify(response.data.html_url))
+  actions.info(`Created PR: ${JSON.stringify(response.data.html_url)}`)
 
   actions.setOutput('pull_request', JSON.stringify(response.data))
 

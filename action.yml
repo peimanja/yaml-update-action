@@ -2,11 +2,20 @@ name: 'Infra Gitops Action'
 description: 'Action to facilitate the Gitops workflow at Skillz'
 author: 'Skillz Infra Team<devops@skillz.com>'
 inputs:
+  workDir:
+    required: false
+    description: 'repository workspace location'
+    default: apps
+  apps:
+    required: false
+    description: 'Comma separated list of apps to update the valueFile, e.g. "currency-service,currency-service-sandbox"'
+    default: ''
   valueFile:
-    required: true
+    required: false
     description: 'YAML file which should be updated'
+    default: release.yaml
   propertyPath:
-    required: true
+    required: false
     description: 'Property Path in the yaml file - using dot for nesting: e.g. backend.version'
     default: 'imageTag'
   value:
@@ -37,8 +46,8 @@ inputs:
     default: ''
   labels:
     required: false
-    description: 'Comma separated list of custom PR labels, e.g. "feature,yaml-updates"'
-    default: 'ci-update'
+    description: 'Comma separated list of custom PR labels, e.g. "ci-upgrade,github-actions"'
+    default: 'release'
   token:
     required: false
     description: 'GitHub AuthToken for Athorization'
@@ -47,10 +56,6 @@ inputs:
     required: false
     description: 'repoistory to update'
     default: ${{ github.repository }}
-  workDir:
-    required: false
-    description: 'repository workspace location'
-    default: apps
 runs:
   using: 'node12'
   main: 'dist/index.js'

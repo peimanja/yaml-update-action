@@ -2,6 +2,8 @@ import * as core from '@actions/core'
 import * as process from 'process'
 
 export interface Options {
+  workDir: string
+  apps: string[]
   valueFile: string
   propertyPath: string
   value: string | number | boolean
@@ -13,10 +15,21 @@ export interface Options {
   labels: string[]
   targetBranch: string
   repository: string
-  workDir: string
 }
 
 export class GitHubOptions implements Options {
+  get workDir(): string {
+    return core.getInput('workDir')
+  }
+
+  get apps(): string[] {
+    return core
+      .getInput('apps')
+      .split(',')
+      .map(app => app.trim())
+      .filter(app => !!app)
+  }
+
   get valueFile(): string {
     return core.getInput('valueFile')
   }
@@ -73,15 +86,18 @@ export class GitHubOptions implements Options {
     )
     return labels
   }
-
-  get workDir(): string {
-    return core.getInput('workDir')
-  }
 }
 
 export class EnvOptions implements Options {
-  get automerge(): boolean {
-    return process.env.AUTOMERGE === 'false'
+  get workDir(): string {
+    return process.env.WORK_DIR || '.'
+  }
+
+  get apps(): string[] {
+    return (process.env.APPS || '')
+      .split(',')
+      .map(label => label.trim())
+      .filter(label => !!label)
   }
 
   get valueFile(): string {
@@ -99,7 +115,6 @@ export class EnvOptions implements Options {
   get branch(): string {
     return process.env.BRANCH || ''
   }
-
 
   get targetBranch(): string {
     return process.env.TARGET_BRANCH || ''
@@ -122,17 +137,17 @@ export class EnvOptions implements Options {
   }
 
   get labels(): string[] {
-    return (process.env.LABELS || '')
+    let labels = []
+    if (process.env.AUTOMERGE === 'true') {
+      labels.push('auto-merge')
+    }
+    return labels.concat((process.env.LABELS || '')
       .split(',')
       .map(label => label.trim())
-      .filter(label => !!label)
+      .filter(label => !!label), labels)
   }
 
   get repository(): string {
     return process.env.REPOSITORY || ''
-  }
-
-  get workDir(): string {
-    return process.env.WORK_DIR || '.'
   }
 }

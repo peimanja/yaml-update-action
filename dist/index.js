@@ -27,29 +27,39 @@ const rest_1 = __nccwpck_require__(5375);
 const git_commands_1 = __nccwpck_require__(4703);
 function run(options, actions) {
     return __awaiter(this, void 0, void 0, function* () {
-        actions.startGroup('YamlUpdateAction');
-        const filePath = path_1.default.join(process.cwd(), options.workDir, options.valueFile);
-        actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
         try {
-            const yamlContent = parseFile(filePath);
-            actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
-            const result = replace(options.value, options.propertyPath, yamlContent);
-            const newYamlContent = convert(result);
-            actions.info(`Generated updated YAML
-
-${newYamlContent}
-`);
-            writeTo(newYamlContent, filePath, actions);
+            actions.startGroup('YamlUpdate');
             const octokit = new rest_1.Octokit({ auth: options.token });
-            const file = {
-                relativePath: options.valueFile,
-                absolutePath: filePath,
-                content: newYamlContent
-            };
+            let filePaths = [];
+            for (let app of options.apps) {
+                filePaths.push(path_1.default.join(process.cwd(), options.workDir, app, options.valueFile));
+            }
+            for (let filePath of filePaths) {
+                actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
+                if (!fs_1.default.existsSync(filePath)) {
+                    actions.setFailed(`File not found: ${filePath}`);
+                    return;
+                }
+                const yamlContent = parseFile(filePath);
+                actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
+                const result = replace(options.value, options.propertyPath, yamlContent);
+                const newYamlContent = convert(result);
+                actions.info(`Generated updated YAML
+
+  ${newYamlContent}
+  `);
+                writeTo(newYamlContent, filePath, actions);
+                const file = {
+                    relativePath: options.valueFile,
+                    absolutePath: filePath,
+                    content: newYamlContent
+                };
+                yield gitProcessing(options.repository, options.branch, file, options.message, octokit, actions);
+            }
             actions.endGroup();
-            actions.startGroup('GitHub Actions');
-            yield gitProcessing(options.repository, options.branch, file, options.message, octokit, actions);
+            actions.startGroup('Create PR');
             yield createPullRequest(options.repository, options.branch, options.targetBranch, options.labels, options.title || `Merge: ${options.message}`, options.description, octokit, actions);
+            actions.endGroup();
         }
         catch (error) {
             if (error.message && error.message.includes('A pull request already exists')) {
@@ -146,8 +156,7 @@ function createPullRequest(repository, branch, targetBranch, labels, title, desc
             base: targetBranch,
             body: description
         });
-        actions.info(`Create PR: #${response.data.id}`);
-        actions.info(JSON.stringify(response.data.html_url));
+        actions.info(`Created PR: ${JSON.stringify(response.data.html_url)}`);
         actions.setOutput('pull_request', JSON.stringify(response.data));
         octokit.issues.addLabels({
             owner,
@@ -364,6 +373,16 @@ exports.EnvOptions = exports.GitHubOptions = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const process = __importStar(__nccwpck_require__(1765));
 class GitHubOptions {
+    get workDir() {
+        return core.getInput('workDir');
+    }
+    get apps() {
+        return core
+            .getInput('apps')
+            .split(',')
+            .map(app => app.trim())
+            .filter(app => !!app);
+    }
     get valueFile() {
         return core.getInput('valueFile');
     }
@@ -408,14 +427,17 @@ class GitHubOptions {
             .filter(label => !!label));
         return labels;
     }
-    get workDir() {
-        return core.getInput('workDir');
-    }
 }
 exports.GitHubOptions = GitHubOptions;
 class EnvOptions {
-    get automerge() {
-        return process.env.AUTOMERGE === 'false';
+    get workDir() {
+        return process.env.WORK_DIR || '.';
+    }
+    get apps() {
+        return (process.env.APPS || '')
+            .split(',')
+            .map(label => label.trim())
+            .filter(label => !!label);
     }
     get valueFile() {
         return process.env.VALUE_FILE || '';
@@ -445,16 +467,17 @@ class EnvOptions {
         return process.env.DESCRIPTION || '';
     }
     get labels() {
-        return (process.env.LABELS || '')
+        let labels = [];
+        if (process.env.AUTOMERGE === 'true') {
+            labels.push('auto-merge');
+        }
+        return labels.concat((process.env.LABELS || '')
             .split(',')
             .map(label => label.trim())
-            .filter(label => !!label);
+            .filter(label => !!label), labels);
     }
     get repository() {
         return process.env.REPOSITORY || '';
-    }
-    get workDir() {
-        return process.env.WORK_DIR || '.';
     }
 }
 exports.EnvOptions = EnvOptions;
