@@ -27,6 +27,7 @@ const rest_1 = __nccwpck_require__(5375);
 const git_commands_1 = __nccwpck_require__(4703);
 function run(options, actions) {
     return __awaiter(this, void 0, void 0, function* () {
+        actions.info(`Running with options: ${JSON.stringify(options)}`);
         try {
             actions.startGroup('YamlUpdate');
             const octokit = new rest_1.Octokit({ auth: options.token });
@@ -34,11 +35,12 @@ function run(options, actions) {
             for (let app of options.apps) {
                 filePaths.push(path_1.default.join(process.cwd(), options.workDir, app, options.valueFile));
             }
-            for (let filePath of filePaths) {
-                actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
+            actions.info(`Updating ${filePaths.length} files`);
+            for (var filePath of filePaths) {
+                actions.info(`Updating ${filePath}`);
+                actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
                 if (!fs_1.default.existsSync(filePath)) {
                     actions.setFailed(`File not found: ${filePath}`);
-                    return;
                 }
                 const yamlContent = parseFile(filePath);
                 actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
@@ -50,7 +52,7 @@ function run(options, actions) {
   `);
                 writeTo(newYamlContent, filePath, actions);
                 const file = {
-                    relativePath: options.valueFile,
+                    relativePath: filePath.replace(path_1.default.join(process.cwd(), options.workDir), ''),
                     absolutePath: filePath,
                     content: newYamlContent
                 };

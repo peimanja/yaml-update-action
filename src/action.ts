@@ -9,20 +9,22 @@ import {ChangedFile, createBlobForFile, createNewCommit, createNewTree, currentC
 export type YamlNode = {[key: string]: string | number | boolean | YamlNode}
 
 export async function run(options: Options, actions: Actions): Promise<void> {
+  actions.info(`Running with options: ${JSON.stringify(options)}`)
   try {
-  actions.startGroup('YamlUpdate')
+    actions.startGroup('YamlUpdate')
   const octokit = new Octokit({auth: options.token})
 
   let filePaths = []
+
   for (let app of options.apps) {
     filePaths.push(path.join(process.cwd(),options.workDir, app, options.valueFile))
   }
-
-  for (let filePath of filePaths) {
-    actions.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
+  actions.info(`Updating ${filePaths.length} files`)
+  for (var filePath of filePaths) {
+    actions.info(`Updating ${filePath}`)
+    actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
       if (!fs.existsSync(filePath)) {
         actions.setFailed(`File not found: ${filePath}`)
-        return
       }
 
       const yamlContent: YamlNode = parseFile(filePath)
@@ -40,7 +42,7 @@ export async function run(options: Options, actions: Actions): Promise<void> {
       writeTo(newYamlContent, filePath, actions)
 
       const file: ChangedFile = {
-        relativePath: options.valueFile,
+        relativePath: filePath.replace(path.join(process.cwd(),options.workDir), ''),
         absolutePath: filePath,
         content: newYamlContent
       }
