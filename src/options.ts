@@ -3,7 +3,6 @@ import * as process from 'process'
 
 export interface Options {
   workDir: string
-  apps: string[]
   valueFile: string
   propertyPath: string
   value: string | number | boolean
@@ -20,14 +19,6 @@ export interface Options {
 export class GitHubOptions implements Options {
   get workDir(): string {
     return core.getInput('workDir')
-  }
-
-  get apps(): string[] {
-    return core
-      .getInput('apps')
-      .split(',')
-      .map(app => app.trim())
-      .filter(app => !!app)
   }
 
   get valueFile(): string {
@@ -91,13 +82,6 @@ export class GitHubOptions implements Options {
 export class EnvOptions implements Options {
   get workDir(): string {
     return process.env.WORK_DIR || '.'
-  }
-
-  get apps(): string[] {
-    return (process.env.APPS || '')
-      .split(',')
-      .map(label => label.trim())
-      .filter(label => !!label)
   }
 
   get valueFile(): string {

@@ -1,57 +1,47 @@
+import * as core from '@actions/core'
 import YAML from 'js-yaml'
 import fs from 'fs'
 import path from 'path'
 import {Options} from './options'
 import {Octokit} from '@octokit/rest'
-import {Actions} from './github-actions'
 import {ChangedFile, createBlobForFile, createNewCommit, createNewTree, currentCommit, repositoryInformation, updateBranch} from './git-commands'
 
 export type YamlNode = {[key: string]: string | number | boolean | YamlNode}
 
-export async function run(options: Options, actions: Actions): Promise<void> {
-  actions.info(`Running with options: ${JSON.stringify(options)}`)
+export async function run(options: Options): Promise<void> {
+  core.startGroup('YamlUpdateAction')
+
+  const filePath = path.join(process.cwd(), options.workDir, options.valueFile)
+
+  core.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
+
   try {
-    actions.startGroup('YamlUpdate')
-  const octokit = new Octokit({auth: options.token})
+    const yamlContent: YamlNode = parseFile(filePath)
 
-  let filePaths = []
+    core.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`)
 
-  for (let app of options.apps) {
-    filePaths.push(path.join(process.cwd(),options.workDir, app, options.valueFile))
-  }
-  actions.info(`Updating ${filePaths.length} files`)
-  for (var filePath of filePaths) {
-    actions.info(`Updating ${filePath}`)
-    actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile})}`)
-      if (!fs.existsSync(filePath)) {
-        actions.setFailed(`File not found: ${filePath}`)
-      }
+    const result = replace(options.value, options.propertyPath, yamlContent)
 
-      const yamlContent: YamlNode = parseFile(filePath)
+    const newYamlContent = convert(result)
 
-      actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`)
+    core.info(`Generated updated YAML
 
-      const result = replace(options.value, options.propertyPath, yamlContent)
+${newYamlContent}
+`)
+    writeTo(newYamlContent, filePath)
 
-      const newYamlContent = convert(result)
+    const octokit = new Octokit({auth: options.token})
 
-      actions.info(`Generated updated YAML
-
-  ${newYamlContent}
-  `)
-      writeTo(newYamlContent, filePath, actions)
-
-      const file: ChangedFile = {
-        relativePath: filePath.replace(path.join(process.cwd(),options.workDir), ''),
-        absolutePath: filePath,
-        content: newYamlContent
-      }
-
-      await gitProcessing(options.repository, options.branch, file, options.message, octokit, actions)
+    const file: ChangedFile = {
+      relativePath: options.valueFile,
+      absolutePath: filePath,
+      content: newYamlContent
     }
-    actions.endGroup()
+    core.endGroup()
 
-    actions.startGroup('Create PR')
+    core.startGroup('GitHub Actions')
+    await gitProcessing(options.repository, options.branch, file, options.message, octokit)
+
       await createPullRequest(
         options.repository,
         options.branch,
@@ -59,15 +49,13 @@ export async function run(options: Options, actions: Actions): Promise<void> {
         options.labels,
         options.title || `Merge: ${options.message}`,
         options.description,
-        octokit,
-        actions
+        octokit
       )
-      actions.endGroup()
   } catch (error) {
     if (error.message && error.message.includes('A pull request already exists')) {
-      actions.info(`Pull request already exists. Skipping.`);
+      core.info(`Pull request already exists. Skipping.`);
     } else {
-      actions.setFailed(error.message);
+      core.setFailed(error.message);
     }
   }
 }
@@ -131,11 +119,11 @@ export function convert(yamlContent: YamlNode): string {
   return YAML.dump(yamlContent, {lineWidth: -1})
 }
 
-export function writeTo(yamlString: string, filePath: string, actions: Actions): void {
+export function writeTo(yamlString: string, filePath: string): void {
   fs.writeFile(filePath, yamlString, err => {
     if (!err) return
 
-    actions.warning(err.message)
+    core.warning(err.message)
   })
 }
 
@@ -145,29 +133,28 @@ export async function gitProcessing(
   file: ChangedFile,
   commitMessage: string,
   octokit: Octokit,
-  actions: Actions
 ): Promise<void> {
   const {owner, repo} = repositoryInformation(repository)
   const {commitSha, treeSha} = await currentCommit(octokit, owner, repo, branch)
 
-  actions.debug(JSON.stringify({baseCommit: commitSha, baseTree: treeSha}))
+  core.debug(JSON.stringify({baseCommit: commitSha, baseTree: treeSha}))
 
   file.sha = await createBlobForFile(octokit, owner, repo, file)
 
-  actions.debug(JSON.stringify({fileBlob: file.sha}))
+  core.debug(JSON.stringify({fileBlob: file.sha}))
 
   const newTreeSha = await createNewTree(octokit, owner, repo, file, treeSha)
 
-  actions.debug(JSON.stringify({createdTree: newTreeSha}))
+  core.debug(JSON.stringify({createdTree: newTreeSha}))
 
   const newCommitSha = await createNewCommit(octokit, owner, repo, commitMessage, newTreeSha, commitSha)
 
-  actions.debug(JSON.stringify({createdCommit: newCommitSha}))
-  actions.setOutput('commit', newCommitSha)
+  core.debug(JSON.stringify({createdCommit: newCommitSha}))
+  core.setOutput('commit', newCommitSha)
 
   await updateBranch(octokit, owner, repo, branch, newCommitSha)
 
-  actions.debug(`Complete`)
+  core.debug(`Complete`)
 }
 
 export async function createPullRequest(
@@ -178,7 +165,6 @@ export async function createPullRequest(
   title: string,
   description: string,
   octokit: Octokit,
-  actions: Actions
 ): Promise<void> {
   const {owner, repo} = repositoryInformation(repository)
 
@@ -191,9 +177,9 @@ export async function createPullRequest(
     body: description
   })
 
-  actions.info(`Created PR: ${JSON.stringify(response.data.html_url)}`)
+  core.info(`Create PR: #${JSON.stringify(response.data.html_url)}`)
 
-  actions.setOutput('pull_request', JSON.stringify(response.data))
+  core.setOutput('pull_request', JSON.stringify(response.data))
 
   octokit.issues.addLabels({
     owner,
@@ -202,5 +188,5 @@ export async function createPullRequest(
     labels
   })
 
-  actions.debug(`Add Label: ${labels.join(', ')}`)
+  core.debug(`Add Label: ${labels.join(', ')}`)
 }

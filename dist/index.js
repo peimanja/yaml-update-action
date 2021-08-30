@@ -6,6 +6,25 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -20,55 +39,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createPullRequest = exports.gitProcessing = exports.writeTo = exports.convert = exports.replace = exports.parseFile = exports.runTest = exports.run = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 const js_yaml_1 = __importDefault(__nccwpck_require__(1917));
 const fs_1 = __importDefault(__nccwpck_require__(5747));
 const path_1 = __importDefault(__nccwpck_require__(5622));
 const rest_1 = __nccwpck_require__(5375);
 const git_commands_1 = __nccwpck_require__(4703);
-function run(options, actions) {
+function run(options) {
     return __awaiter(this, void 0, void 0, function* () {
-        actions.info(`Running with options: ${JSON.stringify(options)}`);
+        core.startGroup('YamlUpdateAction');
+        const filePath = path_1.default.join(process.cwd(), options.workDir, options.valueFile);
+        core.info(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
         try {
-            actions.startGroup('YamlUpdate');
-            const octokit = new rest_1.Octokit({ auth: options.token });
-            let filePaths = [];
-            for (let app of options.apps) {
-                filePaths.push(path_1.default.join(process.cwd(), options.workDir, app, options.valueFile));
-            }
-            actions.info(`Updating ${filePaths.length} files`);
-            for (var filePath of filePaths) {
-                actions.info(`Updating ${filePath}`);
-                actions.debug(`FilePath: ${filePath}, Parameter: ${JSON.stringify({ cwd: process.cwd(), workDir: options.workDir, valueFile: options.valueFile })}`);
-                if (!fs_1.default.existsSync(filePath)) {
-                    actions.setFailed(`File not found: ${filePath}`);
-                }
-                const yamlContent = parseFile(filePath);
-                actions.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
-                const result = replace(options.value, options.propertyPath, yamlContent);
-                const newYamlContent = convert(result);
-                actions.info(`Generated updated YAML
+            const yamlContent = parseFile(filePath);
+            core.debug(`Parsed JSON: ${JSON.stringify(yamlContent)}`);
+            const result = replace(options.value, options.propertyPath, yamlContent);
+            const newYamlContent = convert(result);
+            core.info(`Generated updated YAML
 
-  ${newYamlContent}
-  `);
-                writeTo(newYamlContent, filePath, actions);
-                const file = {
-                    relativePath: filePath.replace(path_1.default.join(process.cwd(), options.workDir), ''),
-                    absolutePath: filePath,
-                    content: newYamlContent
-                };
-                yield gitProcessing(options.repository, options.branch, file, options.message, octokit, actions);
-            }
-            actions.endGroup();
-            actions.startGroup('Create PR');
-            yield createPullRequest(options.repository, options.branch, options.targetBranch, options.labels, options.title || `Merge: ${options.message}`, options.description, octokit, actions);
-            actions.endGroup();
+${newYamlContent}
+`);
+            writeTo(newYamlContent, filePath);
+            const octokit = new rest_1.Octokit({ auth: options.token });
+            const file = {
+                relativePath: options.valueFile,
+                absolutePath: filePath,
+                content: newYamlContent
+            };
+            core.endGroup();
+            core.startGroup('GitHub Actions');
+            yield gitProcessing(options.repository, options.branch, file, options.message, octokit);
+            yield createPullRequest(options.repository, options.branch, options.targetBranch, options.labels, options.title || `Merge: ${options.message}`, options.description, octokit);
         }
         catch (error) {
             if (error.message && error.message.includes('A pull request already exists')) {
-                actions.info(`Pull request already exists. Skipping.`);
+                core.info(`Pull request already exists. Skipping.`);
             }
             else {
-                actions.setFailed(error.message);
+                core.setFailed(error.message);
             }
         }
     });
@@ -122,32 +130,32 @@ function convert(yamlContent) {
     return js_yaml_1.default.dump(yamlContent, { lineWidth: -1 });
 }
 exports.convert = convert;
-function writeTo(yamlString, filePath, actions) {
+function writeTo(yamlString, filePath) {
     fs_1.default.writeFile(filePath, yamlString, err => {
         if (!err)
             return;
-        actions.warning(err.message);
+        core.warning(err.message);
     });
 }
 exports.writeTo = writeTo;
-function gitProcessing(repository, branch, file, commitMessage, octokit, actions) {
+function gitProcessing(repository, branch, file, commitMessage, octokit) {
     return __awaiter(this, void 0, void 0, function* () {
         const { owner, repo } = git_commands_1.repositoryInformation(repository);
         const { commitSha, treeSha } = yield git_commands_1.currentCommit(octokit, owner, repo, branch);
-        actions.debug(JSON.stringify({ baseCommit: commitSha, baseTree: treeSha }));
+        core.debug(JSON.stringify({ baseCommit: commitSha, baseTree: treeSha }));
         file.sha = yield git_commands_1.createBlobForFile(octokit, owner, repo, file);
-        actions.debug(JSON.stringify({ fileBlob: file.sha }));
+        core.debug(JSON.stringify({ fileBlob: file.sha }));
         const newTreeSha = yield git_commands_1.createNewTree(octokit, owner, repo, file, treeSha);
-        actions.debug(JSON.stringify({ createdTree: newTreeSha }));
+        core.debug(JSON.stringify({ createdTree: newTreeSha }));
         const newCommitSha = yield git_commands_1.createNewCommit(octokit, owner, repo, commitMessage, newTreeSha, commitSha);
-        actions.debug(JSON.stringify({ createdCommit: newCommitSha }));
-        actions.setOutput('commit', newCommitSha);
+        core.debug(JSON.stringify({ createdCommit: newCommitSha }));
+        core.setOutput('commit', newCommitSha);
         yield git_commands_1.updateBranch(octokit, owner, repo, branch, newCommitSha);
-        actions.debug(`Complete`);
+        core.debug(`Complete`);
     });
 }
 exports.gitProcessing = gitProcessing;
-function createPullRequest(repository, branch, targetBranch, labels, title, description, octokit, actions) {
+function createPullRequest(repository, branch, targetBranch, labels, title, description, octokit) {
     return __awaiter(this, void 0, void 0, function* () {
         const { owner, repo } = git_commands_1.repositoryInformation(repository);
         const response = yield octokit.pulls.create({
@@ -158,15 +166,15 @@ function createPullRequest(repository, branch, targetBranch, labels, title, desc
             base: targetBranch,
             body: description
         });
-        actions.info(`Created PR: ${JSON.stringify(response.data.html_url)}`);
-        actions.setOutput('pull_request', JSON.stringify(response.data));
+        core.info(`Create PR: #${JSON.stringify(response.data.html_url)}`);
+        core.setOutput('pull_request', JSON.stringify(response.data));
         octokit.issues.addLabels({
             owner,
             repo,
             issue_number: response.data.number,
             labels
         });
-        actions.debug(`Add Label: ${labels.join(', ')}`);
+        core.debug(`Add Label: ${labels.join(', ')}`);
     });
 }
 exports.createPullRequest = createPullRequest;
@@ -290,62 +298,6 @@ exports.repositoryInformation = repositoryInformation;
 
 /***/ }),
 
-/***/ 6905:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GitHubActions = void 0;
-/* eslint-disable no-console */
-const core = __importStar(__nccwpck_require__(2186));
-class GitHubActions {
-    debug(message) {
-        core.debug(message);
-    }
-    info(message) {
-        core.info(message);
-    }
-    warning(message) {
-        core.warning(message);
-    }
-    startGroup(message) {
-        core.startGroup(message);
-    }
-    endGroup() {
-        core.endGroup();
-    }
-    setOutput(name, output) {
-        core.setOutput(name, output);
-    }
-    setFailed(message) {
-        core.setFailed(message);
-    }
-}
-exports.GitHubActions = GitHubActions;
-
-
-/***/ }),
-
 /***/ 1353:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -377,13 +329,6 @@ const process = __importStar(__nccwpck_require__(1765));
 class GitHubOptions {
     get workDir() {
         return core.getInput('workDir');
-    }
-    get apps() {
-        return core
-            .getInput('apps')
-            .split(',')
-            .map(app => app.trim())
-            .filter(app => !!app);
     }
     get valueFile() {
         return core.getInput('valueFile');
@@ -434,12 +379,6 @@ exports.GitHubOptions = GitHubOptions;
 class EnvOptions {
     get workDir() {
         return process.env.WORK_DIR || '.';
-    }
-    get apps() {
-        return (process.env.APPS || '')
-            .split(',')
-            .map(label => label.trim())
-            .filter(label => !!label);
     }
     get valueFile() {
         return process.env.VALUE_FILE || '';
@@ -9839,8 +9778,7 @@ var exports = __webpack_exports__;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const action_1 = __nccwpck_require__(9139);
 const options_1 = __nccwpck_require__(1353);
-const github_actions_1 = __nccwpck_require__(6905);
-action_1.run(new options_1.GitHubOptions(), new github_actions_1.GitHubActions());
+action_1.run(new options_1.GitHubOptions());
 
 })();
 
